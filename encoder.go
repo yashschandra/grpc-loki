@@ -6,8 +6,6 @@ import (
 	"io"
 )
 
-const data = `{"name":{"pos":1,"val":"yash","typ":"string"},"age":{"pos":2,"val":25,"typ":"int"},"hobbies":{"pos":3,"val":["books","porn","yuri","coding"],"typ":"string"},"single":{"pos":5,"val":true,"typ":"bool"},"companies":{"pos":4,"val":[{"name":{"pos":1,"val":"samsung","typ":"string"},"location":{"pos":2,"val":"noida","typ":"string"}},{"name":{"pos":1,"val":"urbanclap","typ":"string"},"location":{"pos":2,"val":"gurgaon","typ":"string"}},{"name":{"pos":1,"val":"grab","typ":"string"},"location":{"pos":2,"val":"bangalore","typ":"string"}}],"typ":"dict"}}`
-
 const (
 	__string = "string"
 	__int = "int"
