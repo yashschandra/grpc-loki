@@ -3,7 +3,8 @@ package main
 import (
 	"encoding/binary"
 	"encoding/json"
-	"io"
+	"bytes"
+	"reflect"
 )
 
 const (
@@ -13,6 +14,7 @@ const (
 	__double = "double"
 	__bool = "bool"
 	__dict = "dict"
+	__array = "array"
 )
 
 type fieldData struct {
@@ -25,6 +27,7 @@ type fieldData struct {
 var tagMap = map[string]int{
 	__string: 2,
 	__dict: 2,
+	__array: 2,
 	__int: 0,
 	__float:5,
 	__double:1,
@@ -39,18 +42,16 @@ type _double float64
 type _bool bool
 type _dict pbData
 
+func isZeroValue (v interface{}) bool {
+	return reflect.DeepEqual(v, reflect.Zero(reflect.TypeOf(v)).Interface())
+}
+
 
 func (s _string) encode() []byte {
-	if s == "" {
-		return []byte{}
-	}
 	return []byte(s)
 }
 
 func (i _int) encode() []byte {
-	if i == 0 {
-		return []byte{}
-	}
 	buf := make([]byte, binary.MaxVarintLen64)
 	if int64(i) < 0 {
 		i += _int(1<<62)
@@ -63,25 +64,15 @@ func (i _int) encode() []byte {
 }
 
 func (f _float) encode() []byte {
-	if f == 0.0 {
-		return []byte{}
-	}
-	var e []byte
-	var w io.Writer
-	binary.Write(w, binary.LittleEndian, float32(f))
-	w.Write(e)
-	return e
+	e := new(bytes.Buffer)
+	binary.Write(e, binary.LittleEndian, float32(f))
+	return e.Bytes()
 }
 
 func (d _double) encode() []byte {
-	if d == 0.0 {
-		return []byte{}
-	}
-	var e []byte
-	var w io.Writer
-	binary.Write(w, binary.LittleEndian, float64(d))
-	w.Write(e)
-	return e
+	e := new(bytes.Buffer)
+	binary.Write(e, binary.LittleEndian, float64(d))
+	return e.Bytes()
 }
 
 func (b _bool) encode() []byte {
@@ -101,16 +92,22 @@ func (f fieldData) encodeRepeated() []byte {
 		}
 	case __float:
 		for _, v := range f.Val.([]interface{}) {
-			b = append(b, v.(_float).encode()...)
-			b = append(_int(len(b)).encode(), b...)
-			b = append(fieldData{Typ: __float}.getTag(), b...)
+			b = append(b, _float(v.(float64)).encode()...)
 		}
+		b = append(_int(len(b)).encode(), b...)
+		b = append(fieldData{Typ: __array, Pos: f.Pos}.getTag(), b...)
 	case __double:
 		for _, v := range f.Val.([]interface{}) {
-			b = append(b, v.(_double).encode()...)
-			b = append(_int(len(b)).encode(), b...)
-			b = append(fieldData{Typ: __double}.getTag(), b...)
+			b = append(b, _double(v.(float64)).encode()...)
 		}
+		b = append(_int(len(b)).encode(), b...)
+		b = append(fieldData{Typ: __array, Pos: f.Pos}.getTag(), b...)
+	case __int:
+		for _, v := range f.Val.([]interface{}) {
+			b = append(b, _int(v.(float64)).encode()...)
+		}
+		b = append(_int(len(b)).encode(), b...)
+		b = append(fieldData{Typ: __array, Pos: f.Pos}.getTag(), b...)
 	}
 	return b
 }
@@ -121,6 +118,9 @@ func (f fieldData) getTag() []byte {
 }
 
 func (f fieldData) encodeWithTag() []byte {
+	if isZeroValue(f.Val) {
+		return []byte{}
+	}
 	tag := f.getTag()
 	var b []byte
 	switch f.Typ {
